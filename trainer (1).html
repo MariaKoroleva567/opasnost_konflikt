@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Тренажёр: Психосоциальные опасности vs HR-конфликты</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #e3f7fc; font-family: 'Segoe UI', Tahoma, sans-serif; color: #2c4a52; overflow: hidden; height: 100vh; }
+
+  /* ====== Контейнер тренажёра ======
+     100vw ширина, max-height 600px, встроенный ресайзер (CSS resize: both
+     + большой видимый угол-грип с собственной JS-логикой ресайза). */
+  #trainer {
+    width: 100vw;
+    height: 600px;
+    max-height: 600px;
+    min-height: 380px;
+    min-width: 320px;
+    resize: both;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 15% 25%, #ffffff 0 8px, transparent 9px),
+      radial-gradient(circle at 80% 18%, #ffffff 0 14px, transparent 15px),
+      radial-gradient(circle at 60% 40%, #ffffff 0 10px, transparent 11px),
+      radial-gradient(circle at 30% 70%, #ffffff 0 12px, transparent 13px),
+      radial-gradient(circle at 90% 75%, #ffffff 0 10px, transparent 11px),
+      linear-gradient(180deg, #e3f7fc 0%, #cfeaf2 60%, #b6e0d6 100%);
+    border: 2px solid #a8dbec;
+    border-radius: 14px;
+    box-shadow: inset 0 0 30px rgba(168,219,236,0.4), 0 6px 18px rgba(62,78,119,0.18);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* ====== Шапка ====== */
+  .top {
+    flex: 0 0 46px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    background: linear-gradient(90deg, #ffffff 0%, #eaf9f3 100%);
+    border-bottom: 2px dashed #a8dbec;
+    gap: 10px;
+  }
+  .top h1 {
+    font-size: clamp(11px, 1.2vw, 14px);
+    color: #2c4a52;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .top h1 .accent { color: #ffa146; }
+  .score {
+    font-size: 11px;
+    background: #ffffff;
+    border: 2px solid #ffbe3a;
+    border-radius: 18px;
+    padding: 3px 10px;
+    color: #2c4a52;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .score b { color: #4abf7e; font-size: 14px; }
+
+  /* ====== Вкладки зон ====== */
+  .tabs {
+    flex: 0 0 34px;
+    display: flex;
+    gap: 4px;
+    padding: 3px 8px;
+    background: #ffffff;
+    border-bottom: 1px solid #cfeaf2;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+  }
+  .tabs::-webkit-scrollbar { height: 4px; }
+  .tabs::-webkit-scrollbar-thumb { background: #a8dbec; border-radius: 2px; }
+  .tab {
+    flex: 1 1 0;
+    min-width: 72px;
+    text-align: center;
+    padding: 4px 4px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #2c4a52;
+    background: #eaf9f3;
+    border: 1.5px solid #a3daca;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tab:hover { background: #d6f3e4; }
+  .tab.active {
+    background: #ffa146;
+    color: #ffffff;
+    border-color: #ffa146;
+    box-shadow: 0 2px 6px rgba(255,161,70,0.4);
+  }
+
+  /* ====== Сцена + панель ====== */
+  .main {
+    flex: 1 1 auto;
+    display: flex;
+    min-height: 0;
+    min-width: 0;
+  }
+  .scene-wrap {
+    flex: 1 1 60%;
+    position: relative;
+    overflow: hidden;
+    border-right: 1px dashed #a8dbec;
+    background:
+      repeating-linear-gradient(45deg, transparent 0 18px, rgba(168,219,236,0.18) 18px 19px),
+      linear-gradient(180deg, #d6f1f8 0%, #e8f7d6 100%);
+    min-width: 0;
+  }
+  .scene-svg { width: 100%; height: 100%; display: block; }
+
+  /* ====== Панель вопроса ====== */
+  .panel {
+    flex: 1 1 40%;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    padding: 8px 10px;
+    background: #ffffff;
+    overflow: hidden;
+  }
+  .panel .zone-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #ffa146;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .panel .zone-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #2c4a52;
+    margin-bottom: 5px;
+  }
+  .panel .task-hint {
+    font-size: 10.5px;
+    color: #6a8a92;
+    background: #f6fbfd;
+    padding: 5px 7px;
+    border-left: 3px solid #a8dbec;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+  .panel .risk-desc {
+    background: linear-gradient(135deg, #eaf9f3 0%, #ffffff 100%);
+    border: 1.5px solid #a3daca;
+    border-radius: 8px;
+    padding: 6px 8px;
+    margin-bottom: 6px;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+  .panel .risk-desc .label { font-weight: 700; color: #4abf7e; margin-right: 4px; }
+  .panel .risk-desc .body { color: #2c4a52; }
+
+  .btn-row { display: flex; gap: 6px; margin-bottom: 6px; }
+  .btn {
+    flex: 1;
+    padding: 7px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 2px solid;
+    transition: 0.15s;
+    line-height: 1.15;
+  }
+  .btn-psycho { background: #fff5e8; border-color: #ffa146; color: #c75a14; }
+  .btn-psycho:hover:not(:disabled) { background: #ffa146; color: #ffffff; }
+  .btn-hr { background: #e8f0f8; border-color: #6a9fc7; color: #2c5a82; }
+  .btn-hr:hover:not(:disabled) { background: #6a9fc7; color: #ffffff; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .feedback {
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 10.5px;
+    line-height: 1.35;
+    margin-bottom: 4px;
+    display: none;
+  }
+  .feedback.show { display: block; }
+  .feedback.ok { background: #e0f5e8; color: #1f6e3f; border-left: 3px solid #4abf7e; }
+  .feedback.err { background: #fdecec; color: #8a2727; border-left: 3px solid #e57373; }
+  .feedback b { display: block; margin-bottom: 2px; font-size: 11.5px; }
+
+  .legend {
+    margin-top: auto;
+    font-size: 9.5px;
+    color: #6a8a92;
+    line-height: 1.35;
+    border-top: 1px dashed #cfeaf2;
+    padding-top: 5px;
+  }
+  .legend .lg-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .legend .lg-i { display: inline-flex; align-items: center; gap: 4px; }
+  .legend .sw { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .legend .sw.or { background: #ffa146; }
+  .legend .sw.gr { background: #4abf7e; }
+  .legend .sw.rd { background: #e57373; }
+  .legend .sw.yel { background: #ffbe3a; }
+
+  /* ====== Низ ====== */
+  .bottom {
+    flex: 0 0 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 10px;
+    background: #ffffff;
+    border-top: 1px solid #cfeaf2;
+    font-size: 10px;
+    color: #6a8a92;
+    gap: 8px;
+  }
+  .bottom span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bottom .reset {
+    background: #ffa146;
+    color: #ffffff;
+    border: none;
+    padding: 3px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .bottom .reset:hover { background: #ff8c1f; }
+
+  /* ====== Точки риска ====== */
+  .risk-dot {
+    position: absolute;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: #ffa146;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 2px #ffa146, 0 2px 6px rgba(0,0,0,0.2);
+    transform: translate(-50%, -50%);
+    transition: 0.15s;
+    z-index: 5;
+    animation: pulse 1.6s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 2px #ffa146, 0 2px 6px rgba(0,0,0,0.2); }
+    50% { box-shadow: 0 0 0 6px rgba(255,161,70,0.3), 0 2px 6px rgba(0,0,0,0.2); }
+  }
+  .risk-dot:hover { transform: translate(-50%, -50%) scale(1.15); }
+  .risk-dot.done {
+    animation: none;
+    background: #cccccc;
+    box-shadow: 0 0 0 2px #cccccc, 0 1px 3px rgba(0,0,0,0.2);
+    cursor: default;
+  }
+  .risk-dot.correct {
+    background: #4abf7e;
+    box-shadow: 0 0 0 2px #4abf7e, 0 2px 6px rgba(0,0,0,0.2);
+  }
+  .risk-dot.wrong {
+    background: #e57373;
+    box-shadow: 0 0 0 2px #e57373, 0 2px 6px rgba(0,0,0,0.2);
+  }
+  .risk-dot.selected {
+    transform: translate(-50%, -50%) scale(1.2);
+    background: #ffbe3a;
+    box-shadow: 0 0 0 3px #ffbe3a, 0 0 0 8px rgba(255,190,58,0.4), 0 3px 8px rgba(0,0,0,0.3);
+    animation: none;
+  }
+
+  /* ====== РЕСАЙЗЕР ====== */
+  /* Нативный ресайзер браузера — стилизуем угол в фирменных цветах */
+  #trainer::-webkit-resizer {
+    border: 18px solid transparent;
+    border-bottom-color: #ffa146;
+    border-right-color: #ffa146;
+    background:
+      linear-gradient(135deg, transparent 0 50%, #ffbe3a 50% 56%, transparent 56%),
+      linear-gradient(135deg, transparent 0 70%, #ffffff 70% 76%, transparent 76%);
+    cursor: nwse-resize;
+  }
+  /* Видимый «хват» в правом нижнем углу — большая оранжевая зона с подсказкой */
+  .grip {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 26px;
+    height: 26px;
+    cursor: nwse-resize;
+    z-index: 30;
+    background:
+      linear-gradient(135deg, transparent 0 35%, #ffa146 35% 55%, transparent 55%),
+      linear-gradient(135deg, transparent 0 60%, #ffbe3a 60% 75%, transparent 75%);
+    border-bottom-right-radius: 12px;
+    pointer-events: auto;
+  }
+  .grip::before {
+    content: '';
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    width: 14px;
+    height: 14px;
+    background:
+      linear-gradient(135deg, transparent 0 38%, #ffa146 38% 50%, transparent 50% 58%, #ffa146 58% 70%, transparent 70%);
+    opacity: 0.85;
+  }
+  .grip:hover { filter: brightness(1.05); }
+  .grip::after {
+    content: '⇲';
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    font-size: 16px;
+    color: #ffa146;
+    font-weight: 700;
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  /* ====== Адаптивность ====== */
+  /* Узкий фрейм: сцена и панель вертикально */
+  @media (max-width: 640px) {
+    .top h1 { font-size: 10.5px; }
+    .score { font-size: 10px; padding: 2px 8px; }
+    .tab { font-size: 10px; padding: 3px 3px; min-width: 60px; }
+    .main { flex-direction: column; }
+    .scene-wrap {
+      flex: 1 1 55%;
+      border-right: none;
+      border-bottom: 1px dashed #a8dbec;
+    }
+    .panel { flex: 1 1 45%; min-width: 0; padding: 6px 8px; }
+    .panel .zone-name { font-size: 13px; }
+    .panel .task-hint { font-size: 9.5px; line-height: 1.25; }
+    .btn { padding: 5px 4px; font-size: 10px; }
+    .risk-dot { width: 22px; height: 22px; font-size: 11px; }
+    .bottom { font-size: 9px; }
+  }
+  @media (max-width: 420px) {
+    .top h1 { font-size: 9.5px; }
+    .tabs { padding: 2px 4px; }
+    .tab { font-size: 9px; padding: 2px 1px; min-width: 56px; }
+    .panel .zone-name { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="trainer">
+  <div class="top">
+    <h1>🎯 Тренажёр: <span class="accent">Психосоциальные опасности</span> vs HR-конфликты</h1>
+    <div class="score">Счёт: <b id="score">0</b>/<span id="total">0</span> · 🟢 <b id="err">0</b>🔴</div>
+  </div>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div class="main">
+    <div class="scene-wrap" id="scene"></div>
+    <div class="panel" id="panel">
+      <div class="zone-title">Зона</div>
+      <div class="zone-name" id="zoneName">—</div>
+      <div class="task-hint" id="taskHint">
+        Кликните на <b>оранжевую точку</b> на сцене. Это <b>психосоциальная перегрузка трудового процесса</b> (→ СУОТ, приказ Минтруда № 776н, Прил. 1) или <b>бытовая/HR-проблема</b> сотрудника (→ сигнал в кадры)?<br>
+        <small style="color:#6a8a92;">4 категории: ① монотонность · ② новый труд · ③ климат/стресс/изоляция · ④ диспетчеризация.</small>
+      </div>
+      <div class="risk-desc" id="riskDesc" style="display:none;">
+        <span class="label">Точка №<span id="riskNum">—</span>:</span>
+        <span class="body" id="riskBody">—</span>
+      </div>
+      <div class="btn-row" id="btnRow" style="display:none;">
+        <button class="btn btn-psycho" data-choice="psycho">⚠️ Риск СУОТ<br><small style="font-weight:400;opacity:0.85">→ в карту рисков</small></button>
+        <button class="btn btn-hr" data-choice="hr">👥 HR/быт<br><small style="font-weight:400;opacity:0.85">→ в кадры</small></button>
+      </div>
+      <div class="feedback" id="feedback"></div>
+      <div class="legend">
+        <div class="lg-row">
+          <span class="lg-i"><span class="sw or"></span> активная</span>
+          <span class="lg-i"><span class="sw yel"></span> выбрана</span>
+          <span class="lg-i"><span class="sw gr"></span> верно</span>
+          <span class="lg-i"><span class="sw rd"></span> ошибка</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <span>💡 СУОТ · Уровень 1 · Приказ Минтруда № 776н</span>
+    <button class="reset" id="resetBtn">↻ Сброс</button>
+  </div>
+
+  <!-- Большой видимый угол-ресайзер (дублирует нативный CSS resize: both) -->
+  <div class="grip" id="grip" title="Потяните, чтобы изменить размер"></div>
+</div>
+
+<script>
+/* ============================================================
+   ДАННЫЕ: 6 рабочих зон, по 5 точек риска в каждой (≥4).
+   Все «psycho» варианты строго попадают в 4 категории психосоциальных
+   перегрузок по Приказу Минтруда № 776н (Приложение 1):
+
+   ① Монотонность труда: однообразные действия или непрерывная
+      концентрация внимания в условиях дефицита сенсорных нагрузок
+   ② Новые, непривычные виды труда при отсутствии информации / умений
+   ③ Напряжённый психологический климат, стрессы, в т.ч. вне места
+      постоянного проживания и без внешних контактов
+   ④ Диспетчеризация процессов с длительной концентрацией внимания
+
+   Ответы:
+     'psycho' → психосоциальный риск трудового процесса (СУОТ)
+     'hr'     → бытовая проблема / эмоц. нестабильность → в HR
+   ============================================================ */
+
+const ZONES = [
+  {
+    id: 'ceh', name: 'Цех', icon: '🔧', svg: 'ceh',
+    risks: [
+      { x: 22, y: 38, text: 'Оператор 8 часов подряд делает одну и ту же операцию: взять деталь, нажать кнопку, положить. Никаких разнообразных сигналов', correct: 'psycho', cat: 1,
+        reason: 'Категория ① по приказу № 776н: монотонный труд при однообразных действиях в условиях дефицита сенсорных нагрузок → в карту рисков СУОТ' },
+      { x: 70, y: 42, text: 'Новый стажёр на конвейере: инструктаж не проводили, не знает, что делать при застревании детали', correct: 'psycho', cat: 2,
+        reason: 'Категория ②: новый непривычный вид труда при отсутствии информации и умений → в карту рисков СУОТ' },
+      { x: 48, y: 70, text: 'Токарь Иван расстроен: поссорился с женой, ночью не спал', correct: 'hr',
+        reason: 'Личная семейная ситуация — бытовая. Если начнёт сказываться на работе → HR/психолог. В карту рисков как системный фактор не вносим' },
+      { x: 30, y: 80, text: 'Бригадир кричит, унижает при всём коллективе за любой промах. Люди боятся задавать вопросы', correct: 'psycho', cat: 3,
+        reason: 'Категория ③: напряжённый психологический климат, стрессовые ситуации из-за конфликтного управления → СУОТ' },
+      { x: 82, y: 76, text: 'Двое рабочих поспорили из-за выбора радиостанции в обеденной зоне', correct: 'hr',
+        reason: 'Локальный межличностный конфликт низкого уровня → HR/руководитель подразделения. Не организационный стресс, в СУОТ не вносим' }
+    ]
+  },
+  {
+    id: 'office', name: 'Офис', icon: '💼', svg: 'office',
+    risks: [
+      { x: 28, y: 35, text: 'Менеджер весь день вводит однотипные данные в одну таблицу. Нет разнообразия сигналов, тишина, устают глаза', correct: 'psycho', cat: 1,
+        reason: 'Категория ①: непрерывная концентрация внимания в условиях дефицита сенсорных нагрузок → СУОТ' },
+      { x: 72, y: 40, text: 'Внедрили новую CRM-систему. Обучающий курс не провели, инструкций нет', correct: 'psycho', cat: 2,
+        reason: 'Категория ②: новый непривычный вид труда при отсутствии информации и умений → СУОТ' },
+      { x: 50, y: 72, text: 'Бухгалтер Марина подавлена: развод, не спит ночами', correct: 'hr',
+        reason: 'Личные обстоятельства → HR/психолог. Не вносим в карту рисков СУОТ, пока это не связано с организацией труда' },
+      { x: 20, y: 78, text: 'В команде страх увольнения: после каждой ошибки — угроза сокращением. Постоянный стресс', correct: 'psycho', cat: 3,
+        reason: 'Категория ③: напряжённый психологический климат, стрессовые ситуации в коллективе → СУОТ' },
+      { x: 78, y: 82, text: 'Нового сотрудника не принимают в коллектив: не здороваются, не зовут на обед', correct: 'hr',
+        reason: 'Межличностный конфликт и возможная дискриминация → HR-служба и этика. В СУОТ — только если причина в системе управления' }
+    ]
+  },
+  {
+    id: 'sklad', name: 'Склад', icon: '📦', svg: 'sklad',
+    risks: [
+      { x: 28, y: 42, text: 'Кладовщик 6 часов сканирует однотипные коробки. Внимание не отвлекается, тишина, быстро наступает усталость', correct: 'psycho', cat: 1,
+        reason: 'Категория ①: однообразные действия + непрерывная концентрация внимания в дефиците сенсорных нагрузок → СУОТ' },
+      { x: 70, y: 38, text: 'Новый сотрудник первый день на складе: не обучен работе со сканером и WMS, не знает маркировку', correct: 'psycho', cat: 2,
+        reason: 'Категория ②: новый непривычный вид труда при отсутствии умений и информации → СУОТ' },
+      { x: 50, y: 70, text: 'Грузчик Сергей выпивает после смены, утром пришёл с запахом', correct: 'hr',
+        reason: 'Личная зависимость → HR/нарколог, проверка допуска к работе. Не вносим в карту рисков как системный фактор' },
+      { x: 22, y: 82, text: 'Кладовщик работает в удалённом филиале, 2 месяца не выезжал. Связь только с одним коллегой', correct: 'psycho', cat: 3,
+        reason: 'Категория ③: выполнение работ вне места постоянного проживания + отсутствие внешних контактов → СУОТ' },
+      { x: 78, y: 80, text: 'Двое кладовщиков не разговаривают уже месяц после ссоры из-за отпуска', correct: 'hr',
+        reason: 'Локальный межличностный конфликт → HR/руководитель. Не вносим в карту рисков, если это не системная проблема' }
+    ]
+  },
+  {
+    id: 'call', name: 'Call-центр', icon: '📞', svg: 'call',
+    risks: [
+      { x: 26, y: 38, text: 'Оператор весь день отвечает по шаблону: «Здравствуйте, чем помочь?». 80+ однотипных звонков подряд', correct: 'psycho', cat: 1,
+        reason: 'Категория ①: монотонный труд при однообразных действиях в дефиците сенсорных нагрузок → СУОТ' },
+      { x: 72, y: 40, text: 'Внедрили новую скриптовую систему и ИИ-помощника. Операторы не понимают, как работать', correct: 'psycho', cat: 2,
+        reason: 'Категория ②: новый непривычный вид труда при отсутствии информации и умений → СУОТ' },
+      { x: 50, y: 70, text: 'Оператор срывается на звонках из-за развода, плачет на смене', correct: 'hr',
+        reason: 'Личная нестабильность → HR/психолог. Не вносим в карту рисков, пока среда не создаёт системный стресс' },
+      { x: 20, y: 80, text: 'Клиенты регулярно кричат, оскорбляют. Защиты и алгоритма эскалации нет', correct: 'psycho', cat: 3,
+        reason: 'Категория ③: стрессовые ситуации на работе из-за напряжённого климата с третьими лицами → СУОТ' },
+      { x: 80, y: 82, text: 'Два оператора поссорились: кто должен подменить коллегу в обед', correct: 'hr',
+        reason: 'Локальный межличностный конфликт → наставник/HR. В СУОТ — только если причина в системе сменности' }
+    ]
+  },
+  {
+    id: 'avar', name: 'Аварийная', icon: '🚨', svg: 'avar',
+    risks: [
+      { x: 28, y: 40, text: 'Электрик 4 часа подряд проверяет однотипные участки сети, взгляд постоянно на одних и тех же приборах', correct: 'psycho', cat: 1,
+        reason: 'Категория ①: непрерывная концентрация внимания в условиях дефицита сенсорных нагрузок → СУОТ' },
+      { x: 72, y: 42, text: 'Бригада вахтой на удалённом объекте 30 дней. Связь только с коллегами, родных не видят', correct: 'psycho', cat: 3,
+        reason: 'Категория ③: работа вне места постоянного проживания + отсутствие иных внешних контактов → СУОТ' },
+      { x: 50, y: 72, text: 'Новый сотрудник первый выезд на газовую аварию: не знает последовательность действий, инструктаж формальный', correct: 'psycho', cat: 2,
+        reason: 'Категория ②: новый непривычный вид труда при отсутствии умений → СУОТ' },
+      { x: 22, y: 82, text: 'Слесарь не выспался: всю ночь у маленького ребёнка была температура', correct: 'hr',
+        reason: 'Семейные обстоятельства → HR-поддержка, перенос смены. Не вносим в карту рисков как системный фактор' },
+      { x: 80, y: 80, text: 'Старший слесарь постоянно кричит и оскорбляет молодых при ошибках', correct: 'psycho', cat: 3,
+        reason: 'Категория ③: напряжённый психологический климат, стрессовые ситуации в коллективе → СУОТ' }
+    ]
+  },
+  {
+    id: 'disp', name: 'Диспетчерская', icon: '🎛️', svg: 'disp',
+    risks: [
+      { x: 28, y: 40, text: 'Диспетчер 12 часов смотрит на 10 мониторов и параллельно отвечает в 3 мессенджерах', correct: 'psycho', cat: 4,
+        reason: 'Категория ④: диспетчеризация процессов с длительной концентрацией внимания → СУОТ' },
+      { x: 72, y: 38, text: 'Ночной диспетчер в одиночестве, тишина, только сигналы. Внимание нужно удерживать всю смену', correct: 'psycho', cat: 1,
+        reason: 'Категория ①: непрерывная концентрация внимания в условиях дефицита сенсорных нагрузок → СУОТ' },
+      { x: 50, y: 72, text: 'Диспетчер Аня плачет: рассталась с парнем, не может сосредоточиться', correct: 'hr',
+        reason: 'Личная ситуация → HR/психолог. Не вносим в карту рисков, пока среда не создаёт системный стресс' },
+      { x: 20, y: 80, text: 'Диспетчер работает в удалённой диспетчерской, 3 месяца без контакта с другими службами', correct: 'psycho', cat: 3,
+        reason: 'Категория ③: отсутствие внешних контактов, изоляция на рабочем месте → СУОТ' },
+      { x: 80, y: 82, text: 'Диспетчер и старший смены не разговаривают уже неделю после спора', correct: 'hr',
+        reason: 'Локальный межличностный конфликт → руководитель/HR. В СУОТ вносим только системные стрессы, а не личные ссоры' }
+    ]
+  }
+];
+
+/* ====== SVG-сцены для каждой зоны ====== */
+const SVGS = {
+  ceh: `<svg class="scene-svg" viewBox="0 0 400 360" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <linearGradient id="floorCeh" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#dde7d3"/><stop offset="1" stop-color="#a3daca"/>
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="400" height="220" fill="#e6f3f8"/>
+    <rect x="0" y="220" width="400" height="140" fill="url(#floorCeh)"/>
+    <rect x="40" y="160" width="80" height="60" fill="#8aa6b5" stroke="#2c4a52" stroke-width="1.5"/>
+    <rect x="50" y="140" width="40" height="20" fill="#5b7c8a"/>
+    <circle cx="100" cy="190" r="10" fill="#ffbe3a" stroke="#2c4a52" stroke-width="1"/>
+    <text x="80" y="225" font-size="8" fill="#2c4a52" font-weight="700">СТАНОК-1</text>
+    <rect x="270" y="155" width="90" height="65" fill="#8aa6b5" stroke="#2c4a52" stroke-width="1.5"/>
+    <rect x="290" y="130" width="50" height="25" fill="#5b7c8a"/>
+    <circle cx="320" cy="190" r="10" fill="#ffbe3a" stroke="#2c4a52" stroke-width="1"/>
+    <text x="290" y="225" font-size="8" fill="#2c4a52" font-weight="700">СТАНОК-2</text>
+    <rect x="0" y="280" width="400" height="14" fill="#6a8a92"/>
+    <rect x="0" y="284" width="400" height="6" fill="#2c4a52"/>
+    <g transform="translate(60,200)">
+      <circle cx="0" cy="-5" r="9" fill="#f5d0a9" stroke="#2c4a52" stroke-width="1"/>
+      <path d="M-9,-2 q9,-12 18,0" fill="#2c4a52"/>
+      <rect x="-10" y="4" width="20" height="22" fill="#4abf7e" rx="2"/>
+      <rect x="-12" y="6" width="5" height="14" fill="#f5d0a9"/>
+      <rect x="7" y="6" width="5" height="14" fill="#f5d0a9"/>
+      <rect x="-8" y="26" width="7" height="14" fill="#3a4f5a"/>
+      <rect x="1" y="26" width="7" height="14" fill="#3a4f5a"/>
+      <ellipse cx="-9" cy="-5" rx="3" ry="5" fill="#c75a14"/>
+      <ellipse cx="9" cy="-5" rx="3" ry="5" fill="#c75a14"/>
+      <path d="M-9,-9 q9,-6 18,0" stroke="#c75a14" stroke-width="1.5" fill="none"/>
+    </g>
+    <g transform="translate(310,205)">
+      <circle cx="0" cy="-5" r="9" fill="#e8b88a" stroke="#2c4a52" stroke-width="1"/>
+      <path d="M-9,-2 q9,-12 18,0" fill="#5b3a1f"/>
+      <rect x="-10" y="4" width="20" height="22" fill="#ffa146" rx="2"/>
+      <rect x="-12" y="6" width="5" height="14" fill="#e8b88a"/>
+      <rect x="7" y="6" width="5" height="14" fill="#e8b88a"/>
+      <rect x="-8" y="26" width="7" height="14" fill="#3a4f5a"/>
+      <rect x="1" y="26" width="7" height="14" fill="#3a4f5a"/>
+    </g>
+    <g transform="translate(180,60)">
+      <polygon points="0,-18 16,12 -16,12" fill="#ffbe3a" stroke="#2c4a52" stroke-width="1.5"/>
+      <text x="0" y="6" font-size="14" text-anchor="middle" fill="#2c4a52" font-weight="700">!</text>
+    </g>
+    <text x="200" y="40" font-size="11" text-anchor="middle" fill="#2c4a52" font-weight="700">ЦЕХ · КОНВЕЙЕР</text>
+  </svg>`,
+  office: `<svg class="scene-svg" viewBox="0 0 400 360" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <linearGradient id="floorOf" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#e8eef0"/><stop offset="1" stop-color="#c2cdd2"/>
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="400" height="220" fill="#e6f3f8"/>
+    <rect x="0" y="220" width="400" height="140" fill="url(#floorOf)"/>
+    <rect x="40" y="180" width="60" height="35" fill="#ffffff" stroke="#2c4a52" stroke-width="1"/>
+    <rect x="160" y="180" width="60" height="35" fill="#ffffff" stroke="#2c4a52" stroke-width="1"/>
+    <rect x="280" y="180" width="60" height="35" fill="#ffffff" stroke="#2c4a52" stroke-width="1"/>
+    <rect x="50" y="170" width="40" height="14" fill="#2c4a52"/>
+    <rect x="170" y="170" width="40" height="14" fill="#2c4a52"/>
+    <rect x="290" y="170" width="40" height="14" fill="#2c4a52"/>
+    <rect x="52" y="172" width="36" height="10" fill="#a8dbec"/>
+    <rect x="172" y="172" width="36" height="10" fill="#a8dbec"/>
+    <rect x="292" y="172" width="36" height="10" fill="#a8dbec"/>
+    <line x1="130" y1="180" x2="130" y2="215" stroke="#a8dbec" stroke-width="3"/>
+    <line x1="250" y1="180" x2="250" y2="215" stroke="#a8dbec" stroke-width="3"/>
+    <g transform="translate(70,170)">
+      <circle cx="0" cy="-12" r="8" fill="#f5d0a9" stroke="#2c4a52" stroke-width="1"/>
+      <path d="M-8,-9 q8,-10 16,0" fill="#5b3a1f"/>
+      <rect x="-9" y="-3" width="18" height="18" fill="#4abf7e" rx="2"/>
+      <rect x="-7" y="15" width="14" height="8" fill="#3a4f5a"/>
+    </g>
+    <g transform="translate(190,170)">
+      <circle cx="0" cy="-12" r="8" fill="#e8b88a" stroke="#2c4a52" stroke-width="1"/>
+      <path d="M-8,-9 q8,-10 16,0" fill="#2c4a52"/>
+      <rect x="-9" y="-3" width="18" height="18" fill="#ffa146" rx="2"/>
+      <rect x="-7" y="15" width="14" height="8" fill="#3a4f5a"/>
+    </g>
+    <g transform="translate(310,170)">
+      <circle cx="0" cy="-12" r="8" fill="#d9a878" stroke="#2c4a52" stroke-width="1"/>
+      <path d="M-8,-9 q8,-10 16,0" fill="#c75a14"/>
+      <rect x="-9" y="-3" width="18" height="18" fill="#6a9fc7" rx="2"/>
+      <rect x="-7" y="15" width="14" height="8" fill="#3a4f5a"/>
+    </g>
+    <g transform="translate(200,60)">
+      <rect x="-50" y="-15" width="100" height="30" fill="#ffbe3a" stroke="#2c4a52" stroke-width="1.5" rx="3"/>
+      <text x="0" y="5" font-size="12" text-anchor="middle" fill="#2c4a52" font-weight="700">⏰ ДЕДЛАЙН</text>
+    </g>
+    <text x="200" y="30" font-size="11" text-anchor="middle" fill="#2c4a52" font-weight="700">OPEN-SPACE ОФИС</text>
+  </svg>`,
+  sklad: `<svg class="scene-svg" viewBox="0 0 400 360" preserveAspectRatio="xMidYMid meet">
+    <rect x="0" y="0" width="400" height="220" fill="#e6f3f8"/>
+    <rect x="0" y="220" width="400" height="140" fill="#a3daca"/>
+    <g stroke="#2c4a52" stroke-width="1.5" fill="#8aa6b5">
+      <rect x="20" y="120" width="80" height="100"/>
+      <rect x="120" y="120" width="80" height="100"/>
+      <rect x="220" y="120" width="80" height="100"/>
+      <rect x="320" y="120" width="80" height="100"/>
+    </g>
+    <g fill="#ffa146" stroke="#2c4a52" stroke-width="0.8">
+      <rect x="25" y="125" width="30" height="22"/>
+      <rect x="60" y="125" width="35" height="22"/>
+      <rect x="25" y="150" width="35" height="22"/>
+      <rect x="65" y="150" width="30" height="22"/>
+      <rect x="125" y="125" width="35" height="22"/>
+      <rect x="165" y="125" width="30" height="22"/>
+      <rect x="125" y="150" width="30" height="22"/>
+      <rect x="160" y="150" width="35" height="22"/>
+      <rect x="225" y="125" width="35" height="22"/>
+      <rect x="265" y="125" width="30" height="22"/>
+      <rect x="225" y="150" width="30" height="22"/>
+      <rect x="260" y="150" width="35" height="22"/>
+      <rect x="325" y="125" width="35" height="22"/>
+      <rect x="365" y="125" width="30" height="22"/>
+      <rect x="325" y="150" width="30" height="22"/>
+      <rect x="360" y="150" width="35" height="22"/>
+    </g>
+    <g transform="translate(80,225)">
+      <circle cx="0" cy="-10" r="8" fill="#e8b88a" stroke="#2c4a52" stroke-width="1"/>
+      <path d="M-8,-7 q8,-9 16,0" fill="#2c4a52"/>
+      <rect x="-9" y="-2" width="18" height="20" fill="#c75a14" rx="2"/>
+      <rect x="-7" y="18" width="14" height="8" fill="#3a4f5a"/>
+      <rect x="-12" y="-30" width="24" height="22" fill="#ffa146" stroke="#2c4a52" stroke-width="1.2"/>
+      <text x="0" y="-16" font-size="8" text-anchor="middle" fill="#2c4a52" font-weight="700">📦</text>
+    </g>
+    <g transform="translate(310,225)">
+      <circle cx="0" cy="-10" r="8" fill="#f5d0a9" stroke="#2c4a52" stroke-width="1"/>
+      <path d="M-8,-7 q8,-9 16,0" fill="#5b3a1f"/>
+      <rect x="-9" y="-2" width="18" height="20" fill="#4abf7e" rx="2"/>
+      <rect x="-7" y="18" width="14" height="8" fill="#3a4f5a"/>
+      <rect x="-6" y="-25" width="14" height="10" fill="#2c4a52"/>
+      <rect x="-5" y="-24" width="12" height="8" fill="#a8dbec"/>
+    </g>
+    <text x="200" y="40" font-size="11" text-anchor="middle" fill="#2c4a52" font-weight="700">СТЕЛЛАЖИ · WMS</text>
+  </svg>`,
+  call: `<svg class="scene-svg" viewBox="0 0 400 360" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <linearGradient id="floorCall" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#e8eef0"/><stop offset="1" stop-color="#c2cdd2"/>
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="400" height="220" fill="#e6f3f8"/>
+    <rect x="0" y="220" width="400" height="140" fill="url(#floorCall)"/>
+    <g>
+      <rect x="50" y="170" width="40" height="14" fill="#2c4a52"/>
+      <rect x="52" y="172" width="36" height="10" fill="#a8dbec"/>
+      <rect x="170" y="170" width="40" height="14" fill="#2c4a52"/>
+      <rect x="172" y="172" width="36" height="10" fill="#a8dbec"/>
+      <rect x="290" y="170" width="40" height="14" fill="#2c4a52"/>
+      <rect x="292" y="172" width="36" height="10" fill="#a8dbec"/>
+    </g>
+    <g transform="translate(70,160)">
+      <circle cx="0" cy="-10" r="8" fill="#f5d0a9" stroke="#2c4a52" stroke-width="1"/>
+      <path d="M-8,-7 q8,-9 16,0" fill="#5b3a1f"/>
+      <ellipse cx="-9" cy="-10" rx="3" ry="5" fill="#2c4a52"/>
+      <ellipse cx="9" cy="-10" rx="3" ry="5" fill="#2c4a52"/>
+      <path d="M-9,-15 q9,-7 18,0" stroke="#2c4a52" stroke-width="1.5" fill="none"/>
+      <rect x="-9" y="-2" width="18" height="18" fill="#4abf7e" rx="2"/>
+      <rect x="-7" y="16" width="14" height="8" fill="#3a4f5a"/>
+    </g>
+    <g transform="translate(190,160)">
+      <circle cx="0" cy="-10" r="8" fill="#e8b88a" stroke="#2c4a52" stroke-width="1"/>
+      <path d="M-8,-7 q8,-9 16,0" fill="#2c4a52"/>
+      <ellipse cx="-9" cy="-10" rx="3" ry="5" fill="#2c4a52"/>
+      <ellipse cx="9" cy="-10" rx="3" ry="5" fill="#2c4a52"/>
+      <path d="M-9,-15 q9,-7 18,0" stroke="#2c4a52" stroke-width="1.5" fill="none"/>
+      <rect x="-9" y="-2" width="18" height="18" fill="#ffa146" rx="2"/>
+      <rect x="-7" y="16" width="14" height="8" fill="#3a4f5a"/>
+    </g>
+    <g transform="translate(310,160)">
+      <circle cx="0" cy="-10" r="8" fill="#d9a878" stroke="#2c4a52" stroke-width="1"/>
+      <path d="M-8,-7 q8,-9 16,0" fill="#c75a14"/>
+      <rect x="-9" y="-2" width="18" height="18" fill="#6a9fc7" rx="2"/>
+      <rect x="-7" y="16" width="14" height="8" fill="#3a4f5a"/>
+      <circle cx="0" cy="-22" r="2.5" fill="#e57373"/>
+      <line x1="0" y1="-13" x2="0" y2="-20" stroke="#e57373" stroke-width="1"/>
+    </g>
+    <text x="40" y="100" font-size="22">📞</text>
+    <text x="180" y="100" font-size="22">📞</text>
+    <text x="320" y="100" font-size="22">😡</text>
+    <text x="120" y="60" font-size="22">😡</text>
+    <text x="260" y="60" font-size="22">📞</text>
+    <text x="200" y="40" font-size="14" text-anchor="middle" fill="#2c4a52" font-weight="700">~ 80 ЗВОНКОВ / ДЕНЬ</text>
+    <g transform="translate(200,120)">
+      <circle cx="0" cy="0" r="14" fill="#ffffff" stroke="#2c4a52" stroke-width="1.5"/>
+      <line x1="0" y1="0" x2="0" y2="-9" stroke="#e57373" stroke-width="1.5"/>
+      <line x1="0" y1="0" x2="7" y2="0" stroke="#2c4a52" stroke-width="1.5"/>
+      <circle cx="0" cy="0" r="1.5" fill="#2c4a52"/>
+    </g>
+  </svg>`,
+  avar: `<svg class="scene-svg" viewBox="0 0 400 360" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <linearGradient id="skyAv" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#2c4a52"/><stop offset="1" stop-color="#6a9fc7"/>
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="400" height="220" fill="url(#skyAv)"/>
+    <rect x="0" y="220" width="400" height="140" fill="#a3daca"/>
+    <rect x="50" y="120" width="60" height="100" fill="#3a4f5a"/>
+    <rect x="55" y="100" width="20" height="22" fill="#3a4f5a"/>
+    <ellipse cx="65" cy="95" rx="8" ry="6" fill="#a8dbec" opacity="0.6"/>
+    <ellipse cx="80" cy="85" rx="10" ry="7" fill="#a8dbec" opacity="0.4"/>
+    <rect x="280" y="130" width="80" height="90" fill="#5b7c8a"/>
+    <rect x="170" y="200" width="80" height="22" fill="#c75a14" stroke="#2c4a52" stroke-width="1.2" rx="2"/>
+    <rect x="180" y="190" width="40" height="14" fill="#ffa146" stroke="#2c4a52" stroke-width="1"/>
+    <circle cx="190" cy="225" r="7" fill="#2c4a52"/>
+    <circle cx="230" cy="225" r="7" fill="#2c4a52"/>
+    <circle cx="200" cy="186" r="3.5" fill="#ffbe3a"/>
+    <circle cx="210" cy="186" r="3.5" fill="#e57373"/>
+    <g transform="translate(100,210)">
+      <circle cx="0" cy="-12" r="9" fill="#e8b88a" stroke="#2c4a52" stroke-width="1"/>
+      <path d="M-9,-9 q9,-11 18,0" fill="#ffbe3a"/>
+      <rect x="-10" y="-2" width="20" height="22" fill="#c75a14" rx="2"/>
+      <rect x="10" y="0" width="22" height="3" fill="#a8dbec"/>
+      <rect x="-7" y="20" width="14" height="10" fill="#3a4f5a"/>
+    </g>
+    <g transform="translate(310,210)">
+      <circle cx="0" cy="-12" r="9" fill="#d9a878" stroke="#2c4a52" stroke-width="1"/>
+      <path d="M-9,-9 q9,-11 18,0" fill="#2c4a52"/>
+      <rect x="-10" y="-2" width="20" height="22" fill="#4abf7e" rx="2"/>
+      <path d="M-10,-18 q10,-8 20,0" fill="#ffbe3a" stroke="#2c4a52" stroke-width="1"/>
+      <rect x="-10" y="-18" width="20" height="3" fill="#ffbe3a" stroke="#2c4a52" stroke-width="1"/>
+      <path d="M-12,8 q-10,15 -8,25" stroke="#2c4a52" stroke-width="2" fill="none"/>
+      <rect x="-7" y="20" width="14" height="10" fill="#3a4f5a"/>
+    </g>
+    <text x="200" y="60" font-size="36" text-anchor="middle" fill="#ffbe3a" font-weight="700">⚡</text>
+    <text x="200" y="85" font-size="11" text-anchor="middle" fill="#ffffff" font-weight="700">АВАРИЙНАЯ СЛУЖБА</text>
+    <g transform="translate(50,60)">
+      <polygon points="0,-15 13,10 -13,10" fill="#e57373" stroke="#ffffff" stroke-width="1.2"/>
+      <text x="0" y="6" font-size="12" text-anchor="middle" fill="#ffffff" font-weight="700">!</text>
+    </g>
+  </svg>`,
+  disp: `<svg class="scene-svg" viewBox="0 0 400 360" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <linearGradient id="bgDisp" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0" stop-color="#1f2c33"/><stop offset="1" stop-color="#3a4f5a"/>
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="400" height="220" fill="url(#bgDisp)"/>
+    <rect x="0" y="220" width="400" height="140" fill="#2c4a52"/>
+    <g>
+      <rect x="20" y="30" width="60" height="40" fill="#2c4a52" stroke="#6a9fc7" stroke-width="1.5"/>
+      <rect x="22" y="32" width="56" height="36" fill="#a8dbec"/>
+      <rect x="90" y="30" width="60" height="40" fill="#2c4a52" stroke="#6a9fc7" stroke-width="1.5"/>
+      <rect x="92" y="32" width="56" height="36" fill="#a8dbec"/>
+      <rect x="160" y="30" width="60" height="40" fill="#2c4a52" stroke="#6a9fc7" stroke-width="1.5"/>
+      <rect x="162" y="32" width="56" height="36" fill="#a8dbec"/>
+      <rect x="230" y="30" width="60" height="40" fill="#2c4a52" stroke="#6a9fc7" stroke-width="1.5"/>
+      <rect x="232" y="32" width="56" height="36" fill="#a8dbec"/>
+      <rect x="300" y="30" width="60" height="40" fill="#2c4a52" stroke="#6a9fc7" stroke-width="1.5"/>
+      <rect x="302" y="32" width="56" height="36" fill="#a8dbec"/>
+      <rect x="20" y="80" width="60" height="40" fill="#2c4a52" stroke="#6a9fc7" stroke-width="1.5"/>
+      <rect x="22" y="82" width="56" height="36" fill="#a8dbec"/>
+      <rect x="90" y="80" width="60" height="40" fill="#2c4a52" stroke="#6a9fc7" stroke-width="1.5"/>
+      <rect x="92" y="82" width="56" height="36" fill="#a8dbec"/>
+      <rect x="160" y="80" width="60" height="40" fill="#2c4a52" stroke="#6a9fc7" stroke-width="1.5"/>
+      <rect x="162" y="82" width="56" height="36" fill="#a8dbec"/>
+      <rect x="230" y="80" width="60" height="40" fill="#2c4a52" stroke="#6a9fc7" stroke-width="1.5"/>
+      <rect x="232" y="82" width="56" height="36" fill="#a8dbec"/>
+      <rect x="300" y="80" width="60" height="40" fill="#2c4a52" stroke="#6a9fc7" stroke-width="1.5"/>
+      <rect x="302" y="82" width="56" height="36" fill="#a8dbec"/>
+    </g>
+    <g stroke="#4abf7e" stroke-width="0.8" fill="none">
+      <path d="M25,108 L35,100 L45,105 L55,95 L65,100 L75,92"/>
+      <path d="M95,108 L105,98 L115,103 L125,93 L135,98 L145,90"/>
+      <path d="M165,108 L175,100 L185,106 L195,96 L205,102 L215,94"/>
+    </g>
+    <rect x="40" y="180" width="320" height="40" fill="#5b7c8a" stroke="#a8dbec" stroke-width="1.2" rx="3"/>
+    <g fill="#ffbe3a">
+      <circle cx="80" cy="200" r="3"/><circle cx="110" cy="200" r="3"/><circle cx="140" cy="200" r="3"/>
+      <circle cx="170" cy="200" r="3"/><circle cx="200" cy="200" r="3"/>
+    </g>
+    <g fill="#e57373">
+      <circle cx="260" cy="200" r="3"/><circle cx="290" cy="200" r="3"/><circle cx="320" cy="200" r="3"/>
+    </g>
+    <g transform="translate(120,180)">
+      <circle cx="0" cy="-12" r="8" fill="#f5d0a9" stroke="#a8dbec" stroke-width="1"/>
+      <path d="M-8,-9 q8,-10 16,0" fill="#5b3a1f"/>
+      <ellipse cx="-9" cy="-12" rx="3" ry="5" fill="#2c4a52"/>
+      <ellipse cx="9" cy="-12" rx="3" ry="5" fill="#2c4a52"/>
+      <rect x="-9" y="-3" width="18" height="20" fill="#4abf7e" rx="2"/>
+      <rect x="-7" y="17" width="14" height="8" fill="#3a4f5a"/>
+    </g>
+    <g transform="translate(280,180)">
+      <circle cx="0" cy="-12" r="8" fill="#e8b88a" stroke="#a8dbec" stroke-width="1"/>
+      <path d="M-8,-9 q8,-10 16,0" fill="#2c4a52"/>
+      <ellipse cx="-9" cy="-12" rx="3" ry="5" fill="#2c4a52"/>
+      <ellipse cx="9" cy="-12" rx="3" ry="5" fill="#2c4a52"/>
+      <rect x="-9" y="-3" width="18" height="20" fill="#ffa146" rx="2"/>
+      <rect x="-7" y="17" width="14" height="8" fill="#3a4f5a"/>
+    </g>
+    <text x="200" y="18" font-size="11" text-anchor="middle" fill="#a8dbec" font-weight="700">10 МОНИТОРОВ · 24/7</text>
+    <circle cx="40" cy="50" r="3" fill="#e57373"><animate attributeName="opacity" values="1;0.2;1" dur="1.2s" repeatCount="indefinite"/></circle>
+    <circle cx="110" cy="50" r="3" fill="#ffbe3a"><animate attributeName="opacity" values="1;0.2;1" dur="1.5s" repeatCount="indefinite"/></circle>
+    <circle cx="180" cy="50" r="3" fill="#e57373"><animate attributeName="opacity" values="1;0.2;1" dur="1s" repeatCount="indefinite"/></circle>
+  </svg>`
+};
+
+/* ====== Состояние ====== */
+let currentZone = 0;
+let selectedIdx = -1;
+let score = 0, errors = 0, answered = 0;
+
+const tabsEl   = document.getElementById('tabs');
+const sceneEl  = document.getElementById('scene');
+const zoneNameEl = document.getElementById('zoneName');
+const riskDescEl = document.getElementById('riskDesc');
+const riskNumEl  = document.getElementById('riskNum');
+const riskBodyEl = document.getElementById('riskBody');
+const btnRowEl   = document.getElementById('btnRow');
+const feedbackEl = document.getElementById('feedback');
+const scoreEl    = document.getElementById('score');
+const errEl      = document.getElementById('err');
+const totalEl    = document.getElementById('total');
+const resetBtn   = document.getElementById('resetBtn');
+
+function totalCount(){ return ZONES.reduce((s,z)=>s+z.risks.length,0); }
+
+function renderTabs(){
+  tabsEl.innerHTML = ZONES.map((z,i)=>
+    `<div class="tab ${i===currentZone?'active':''}" data-zone="${i}">${z.icon} ${z.name}</div>`).join('');
+  tabsEl.querySelectorAll('.tab').forEach(t=>{
+    t.onclick = ()=>{ currentZone = +t.dataset.zone; selectedIdx = -1; renderZone(); };
+  });
+}
+
+function renderZone(){
+  const z = ZONES[currentZone];
+  zoneNameEl.textContent = `${z.icon} ${z.name}`;
+  sceneEl.innerHTML = SVGS[z.svg];
+  z.risks.forEach((r,i)=>{
+    const d = document.createElement('div');
+    d.className = 'risk-dot';
+    d.textContent = (i+1);
+    d.style.left = r.x + '%';
+    d.style.top  = r.y + '%';
+    if (r._ans !== undefined){
+      d.classList.add('done');
+      if (r._ans === 'correct') d.classList.add('correct');
+      else if (r._ans === 'wrong') d.classList.add('wrong');
+    }
+    d.onclick = ()=>selectPoint(i);
+    sceneEl.appendChild(d);
+  });
+  if (selectedIdx < 0){
+    riskDescEl.style.display = 'none';
+    btnRowEl.style.display = 'none';
+    feedbackEl.classList.remove('show','ok','err');
+    feedbackEl.innerHTML = '';
+  }
+  renderTabs();
+}
+
+function selectPoint(i){
+  const z = ZONES[currentZone];
+  const r = z.risks[i];
+  sceneEl.querySelectorAll('.risk-dot').forEach((d,idx)=>{
+    d.classList.toggle('selected', idx===i && r._ans === undefined);
+  });
+  selectedIdx = i;
+  riskDescEl.style.display = 'block';
+  riskNumEl.textContent = (i+1);
+  riskBodyEl.textContent = r.text;
+  btnRowEl.style.display = 'flex';
+  feedbackEl.classList.remove('show','ok','err');
+  feedbackEl.innerHTML = '';
+  if (r._ans !== undefined){
+    btnRowEl.style.display = 'none';
+    feedbackEl.classList.add('show', r._ans === 'correct' ? 'ok' : 'err');
+    feedbackEl.innerHTML = r._ans === 'correct'
+      ? `<b>✅ Верно!</b>${r.reason}`
+      : `<b>❌ Ошибка.</b>${r.reason}`;
+  } else {
+    btnRowEl.querySelectorAll('.btn').forEach(b=>b.disabled = false);
+  }
+}
+
+btnRowEl.addEventListener('click', e=>{
+  const btn = e.target.closest('.btn');
+  if (!btn) return;
+  if (selectedIdx < 0) return;
+  const z = ZONES[currentZone];
+  const r = z.risks[selectedIdx];
+  if (r._ans !== undefined) return;
+  const choice = btn.dataset.choice;
+  const ok = (choice === r.correct);
+  r._ans = ok ? 'correct' : 'wrong';
+  if (ok){ score++; } else { errors++; }
+  answered++;
+  scoreEl.textContent = score;
+  errEl.textContent   = errors;
+  feedbackEl.classList.add('show', ok ? 'ok' : 'err');
+  feedbackEl.innerHTML = ok
+    ? `<b>✅ Верно!</b>${r.reason}`
+    : `<b>❌ Неверно.</b>${r.reason}`;
+  btnRowEl.style.display = 'none';
+  renderZone();
+  selectPoint(selectedIdx);
+});
+
+resetBtn.onclick = ()=>{
+  score = errors = answered = 0;
+  scoreEl.textContent = 0; errEl.textContent = 0;
+  ZONES.forEach(z=>z.risks.forEach(r=>delete r._ans));
+  selectedIdx = -1;
+  renderZone();
+};
+
+/* ====== КАСТОМНЫЙ РЕСАЙЗЕР (усиливает нативный CSS resize: both) ====== */
+(function(){
+  const trainer = document.getElementById('trainer');
+  const grip = document.getElementById('grip');
+  let dragging = false, startX=0, startY=0, startW=0, startH=0;
+
+  grip.addEventListener('pointerdown', e=>{
+    dragging = true;
+    startX = e.clientX; startY = e.clientY;
+    startW = trainer.offsetWidth; startH = trainer.offsetHeight;
+    try{ grip.setPointerCapture(e.pointerId); }catch(_){}
+    e.preventDefault();
+  });
+  grip.addEventListener('pointermove', e=>{
+    if (!dragging) return;
+    const dw = e.clientX - startX;
+    const dh = e.clientY - startY;
+    const cs = getComputedStyle(trainer);
+    const minW = parseInt(cs.minWidth)  || 320;
+    const maxW = window.innerWidth;
+    const minH = parseInt(cs.minHeight) || 380;
+    const maxH = 600;
+    const nw = Math.max(minW, Math.min(maxW, startW + dw));
+    const nh = Math.max(minH, Math.min(maxH, startH + dh));
+    trainer.style.width  = nw + 'px';
+    trainer.style.height = nh + 'px';
+  });
+  grip.addEventListener('pointerup', e=>{
+    dragging = false;
+    try{ grip.releasePointerCapture(e.pointerId); }catch(_){}
+  });
+})();
+
+/* init */
+totalEl.textContent = totalCount();
+renderTabs();
+renderZone();
+</script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a10441467b89aa08',t:'MTc4MjIyNTcwMA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
